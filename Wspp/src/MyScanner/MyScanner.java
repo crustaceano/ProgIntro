@@ -1,29 +1,27 @@
 package MyScanner;
 
 import java.io.*;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.function.Predicate;
 
 public class MyScanner implements AutoCloseable {
     private BufferedReader reader;
     private String buffer;
     private int position;
-    private Set<Character> customWordChars; // Множество для символов, которые считаются частью слова
-    private int buffer_size = 1024;
+    private Predicate<Character> delimiterChecker; // Функция для проверки разделителей
+
     // Конструктор по умолчанию
     public MyScanner(Reader reader) {
-        this(reader, new HashSet<>()); // Используем конструктор с символами по умолчанию
+        this(reader, getDefaultDelimiterChecker()); // Используем функцию по умолчанию
     }
-    // Конструктор с дополнительными символами, которые считаются частью слова
-    public MyScanner(Reader reader, Set<Character> customWordChars) {
+
+    // Конструктор с пользовательской функцией для проверки разделителей
+    public MyScanner(Reader reader, Predicate<Character> delimiterChecker) {
         this.reader = new BufferedReader(reader);
         this.buffer = "";
         this.position = 0;
-        this.customWordChars = customWordChars;
+        this.delimiterChecker = delimiterChecker;
     }
-    public void setBufferSize(int buffer_size){
-        this.buffer_size = buffer_size;
-    }
+
     // Метод для обновления буфера
     private void fillBuffer() throws IOException {
         char[] tempBuffer = new char[1024];
@@ -49,7 +47,7 @@ public class MyScanner implements AutoCloseable {
             }
 
             char c = buffer.charAt(position++);
-            if (isDelimiter(c)) {
+            if (delimiterChecker.test(c)) {
                 if (word.length() > 0) {
                     return word.toString();
                 }
@@ -57,14 +55,6 @@ public class MyScanner implements AutoCloseable {
                 word.append(c);
             }
         }
-    }
-
-    private boolean isDelimiter(char c) {
-        return !(Character.isLetter(c) || c == '\'' || isDash(c) || customWordChars.contains(c));
-    }
-
-    private boolean isDash(char c) {
-        return Character.getType(c) == Character.DASH_PUNCTUATION;
     }
 
     public boolean hasNext() throws IOException {
@@ -78,7 +68,7 @@ public class MyScanner implements AutoCloseable {
             }
 
             char c = buffer.charAt(position);
-            if (!isDelimiter(c)) {
+            if (!delimiterChecker.test(c)) {
                 return true;
             } else {
                 position++;
@@ -86,7 +76,36 @@ public class MyScanner implements AutoCloseable {
         }
     }
 
+    // Метод для чтения целой строки
+    public String nextLine() throws IOException {
+        StringBuilder line = new StringBuilder();
+        while (hasNextLine()) {
+            char c = (char) reader.read();
+            if (c == '\n') {
+                break; // Конец строки
+            }
+            line.append(c);
+        }
+        return line.length() > 0 ? line.toString() : null;
+    }
+
+    // Метод для проверки наличия следующей строки
+    public boolean hasNextLine() throws IOException {
+        reader.mark(1); // Ставим метку на текущей позиции
+        int nextChar = reader.read(); // Читаем следующий символ
+        if (nextChar == -1) {
+            return false; // Конец файла
+        }
+        reader.reset(); // Возвращаемся к метке
+        return true; // Есть следующая строка
+    }
+
     public void close() throws IOException {
         reader.close();
+    }
+
+    // Метод для получения функции по умолчанию
+    private static Predicate<Character> getDefaultDelimiterChecker() {
+        return c -> !(Character.isLetter(c) || c == '\'' || Character.getType(c) == Character.DASH_PUNCTUATION);
     }
 }
