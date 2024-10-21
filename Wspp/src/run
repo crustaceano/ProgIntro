@@ -1,0 +1,6 @@
+# javac Wspp.java
+# java Wspp txt.in txt.out
+javac Wspp.java
+javac WsppEvenCurrency.java
+java WsppEvenCurrency txt.in txt.out
+

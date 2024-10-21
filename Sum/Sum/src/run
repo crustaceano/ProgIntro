@@ -1,0 +1,2 @@
+javac Sum.java
+java Sum "?123?456?789?"

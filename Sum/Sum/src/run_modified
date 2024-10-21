@@ -1,0 +1,2 @@
+javac SumLongPunctHex.java
+java SumLongPunctHex "(123(456(789("
