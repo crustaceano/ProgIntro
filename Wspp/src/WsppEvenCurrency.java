@@ -7,26 +7,25 @@ import java.util.*;
 public class WsppEvenCurrency {
 
     static void solve(String inputFile, String outputFile) {
-        LinkedHashMap<String, List<Integer>> wordCounter = new LinkedHashMap<>();
+        LinkedHashMap<String, List<Integer>> wordCounter = new LinkedHashMap<>(); // Четные вхождения
+        LinkedHashMap<String, Integer> totalWordCount = new LinkedHashMap<>(); // Общее количество вхождений
 
-        try (MyScanner scanner = new MyScanner(new FileReader(inputFile, StandardCharsets.UTF_8))) {
-            StringBuilder currentLine = new StringBuilder(); // Вынесем переменную сюда
-            int lineIndex = 1; // Индекс текущей строки
+        try (MyScanner scanner = new MyScanner(new FileReader(inputFile, StandardCharsets.UTF_8),
+                c -> !(Character.isLetter(c) || c == '\'' || Character.getType(c) == Character.DASH_PUNCTUATION || Character.getType(c) == Character.getType('\n') || Character.getType(c) == Character.CURRENCY_SYMBOL))) {
+            StringBuilder currentLine = new StringBuilder();
+            int word_ind = 1;
 
             while (scanner.hasNext()) {
                 String word = scanner.next();
-                if (word.equals("\n")) {
-                    processLine(currentLine.toString(), wordCounter, lineIndex);
-                    currentLine.setLength(0); // Сбрасываем строку
-                    lineIndex++; // Переходим к следующей строке
+                if (word.contains("\n")) {
+                    processLine(currentLine.toString(), wordCounter, totalWordCount, word_ind);
+                    currentLine.setLength(0);  // Очистка для новой строки
                 } else {
                     currentLine.append(word).append(" ");
                 }
             }
-
-            // Обрабатываем последнюю строку, если она не была обработана
-            if (currentLine.length() > 0) {
-                processLine(currentLine.toString(), wordCounter, lineIndex);
+            if (!currentLine.isEmpty()) {
+                processLine(currentLine.toString(), wordCounter, totalWordCount, word_ind);
             }
         } catch (FileNotFoundException e) {
             System.err.println("Ошибка: файл не найден - " + e.getMessage());
@@ -36,58 +35,66 @@ public class WsppEvenCurrency {
             return;
         }
 
-        writeOutput(outputFile, wordCounter);
+        writeOutput(outputFile, wordCounter, totalWordCount);
     }
 
-    private static void processLine(String line, LinkedHashMap<String, List<Integer>> wordCounter, int lineIndex) {
+    private static void processLine(String line, LinkedHashMap<String, List<Integer>> wordCounter,
+                                    Map<String, Integer> totalWordCount, int word_ind) {
         Map<String, Integer> countWordsByLine = new HashMap<>();
         StringBuilder cleanedWord = new StringBuilder();
-        int wordPosition = 1; // Позиция слова в строке
+        int wordPosition = 1;
 
         for (char c : line.toCharArray()) {
-            if (Character.isLetter(c) || c == '\'' || c == '-' || c == '$') {
-                cleanedWord.append(c); // Собираем слово
-            } else if (Character.isWhitespace(c)) {
-                if (cleanedWord.length() > 0) {
+            // Debug: Print each character processed
+//            System.out.println("Processing character: " + c + " (type: " + Character.getType(c) + ")");
+
+            if (!Character.isWhitespace(c)) {
+                cleanedWord.append(c);
+            } else {
+                if (!cleanedWord.isEmpty()) {
                     String word = cleanedWord.toString().toLowerCase();
                     countWordsByLine.put(word, countWordsByLine.getOrDefault(word, 0) + 1);
-
-                    // Добавляем четные вхождения
+                    totalWordCount.put(word, totalWordCount.getOrDefault(word, 0) + 1);
                     if (countWordsByLine.get(word) % 2 == 0) {
-                        addWord(word, wordCounter, lineIndex, wordPosition);
+                        addWord(word, wordCounter, word_ind);
                     }
-                    cleanedWord.setLength(0); // Сбрасываем текущее слово
-                    wordPosition++; // Переходим к следующему слову
+                    cleanedWord.setLength(0);
+                    wordPosition++;
+                    word_ind++;
                 }
             }
         }
-        // Проверяем последнее слово в строке
+
+        // Check for any remaining word at the end of the line
         if (cleanedWord.length() > 0) {
             String word = cleanedWord.toString().toLowerCase();
             countWordsByLine.put(word, countWordsByLine.getOrDefault(word, 0) + 1);
-
+            totalWordCount.put(word, totalWordCount.getOrDefault(word, 0) + 1);
             if (countWordsByLine.get(word) % 2 == 0) {
-                addWord(word, wordCounter, lineIndex, wordPosition);
+                addWord(word, wordCounter, word_ind);
             }
+            word_ind++;
         }
     }
 
-    private static void addWord(String word, LinkedHashMap<String, List<Integer>> wordCounter, int lineIndex, int wordPosition) {
-        // Добавляем слово в словарь с указанием номера строки и позиции слова в строке
-        wordCounter.computeIfAbsent(word, k -> new ArrayList<>()).add(lineIndex);
-        wordCounter.get(word).add(wordPosition);
+
+    private static void addWord(String word, LinkedHashMap<String, List<Integer>> wordCounter, int wordPosition) {
+        wordCounter.computeIfAbsent(word, k -> new ArrayList<>()).add(wordPosition);
+//        System.err.println(word + " " + wordCounter.get(word).size());
     }
 
-    private static void writeOutput(String outputFile, LinkedHashMap<String, List<Integer>> wordCounter) {
+    private static void writeOutput(String outputFile, LinkedHashMap<String, List<Integer>> wordCounter,
+                                    Map<String, Integer> totalWordCount) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile, StandardCharsets.UTF_8))) {
-            for (Map.Entry<String, List<Integer>> entry : wordCounter.entrySet()) {
-                List<Integer> occurrences = entry.getValue();
-                writer.write(entry.getKey());
+            for (String word: totalWordCount.keySet()) {
+                // Записываем слово и общее количество всех его вхождений
+                writer.write(word + " " + totalWordCount.get(word));
 
-                // Записываем индексы строк и позиции слов для четных вхождений
-                for (int i = 0; i < occurrences.size(); i += 2) {
-                    writer.write(" " + occurrences.get(i) + " " + occurrences.get(i + 1));
+                // Записываем четные вхождения (индексы строк и позиции слов)
+                for(Integer elem: wordCounter.getOrDefault(word, new ArrayList<>())){
+                    writer.write(" " + elem);
                 }
+
                 writer.newLine();
             }
         } catch (IOException e) {

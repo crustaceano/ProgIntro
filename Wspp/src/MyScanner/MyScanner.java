@@ -47,6 +47,17 @@ public class MyScanner implements AutoCloseable {
             }
 
             char c = buffer.charAt(position++);
+
+            // Если встречаем \n, можно возвращать или игнорировать в зависимости от логики
+            if (c == '\n') {
+                if (word.length() > 0) {
+                    position--; // Возвращаем позицию назад для следующего вызова
+                    return word.toString();
+                } else {
+                    return "\n"; // Если нужно вернуть символ новой строки
+                }
+            }
+
             if (delimiterChecker.test(c)) {
                 if (word.length() > 0) {
                     return word.toString();
@@ -56,6 +67,7 @@ public class MyScanner implements AutoCloseable {
             }
         }
     }
+
 
     public boolean hasNext() throws IOException {
         while (true) {
